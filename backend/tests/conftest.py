@@ -11,7 +11,7 @@ engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 async def setup_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -27,7 +27,7 @@ async def db():
 
 
 @pytest.fixture
-async def client():
+async def client(setup_db):
     async def override_get_db():
         async with TestSession() as session:
             yield session
