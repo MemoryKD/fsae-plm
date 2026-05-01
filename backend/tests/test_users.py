@@ -14,7 +14,7 @@ async def get_admin_token(client):
 @pytest.mark.asyncio
 async def test_list_users(client):
     token = await get_admin_token(client)
-    resp = await client.get("/api/users", headers={"Authorization": f"Bearer {token}"})
+    resp = await client.get("/api/users/", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
 

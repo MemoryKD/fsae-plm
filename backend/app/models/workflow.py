@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy import Column, String, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from app.utils.types import PortableUUID as UUID, PortableJSON as JSONB
 
 from app.database import Base
 

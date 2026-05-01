@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from app.database import Base, get_db
 from app.main import app
 
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/fsae_plm_test"
+TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 
 engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 TestSession = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
