@@ -14,9 +14,14 @@
       <el-table-column prop="name" label="名称" />
       <el-table-column prop="subsystem" label="子系统" width="100" />
       <el-table-column prop="current_version" label="版本" width="80" />
-      <el-table-column prop="workflow_state" label="状态" width="100">
+      <el-table-column prop="lifecycle_state" label="生命周期" width="100">
         <template #default="{ row }">
-          <el-tag :type="stateType(row.workflow_state)">{{ row.workflow_state }}</el-tag>
+          <el-tag :type="row.lifecycle_state === '已发布' ? 'success' : 'info'">{{ row.lifecycle_state }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="check_state" label="检入/检出" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.check_state === '检出' ? 'warning' : 'info'">{{ row.check_state }}</el-tag>
         </template>
       </el-table-column>
     </el-table>

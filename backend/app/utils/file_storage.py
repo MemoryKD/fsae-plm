@@ -21,6 +21,13 @@ class LocalFileStorage:
         if path.exists():
             path.unlink()
 
+    async def save_thumbnail(self, part_id: str, image_content: bytes) -> str:
+        thumb_dir = self.base_path / "thumbnails"
+        thumb_dir.mkdir(parents=True, exist_ok=True)
+        thumb_path = thumb_dir / f"{part_id}.png"
+        thumb_path.write_bytes(image_content)
+        return str(thumb_path)
+
 
 def get_storage():
     return LocalFileStorage()

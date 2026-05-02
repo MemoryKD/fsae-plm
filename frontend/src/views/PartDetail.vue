@@ -12,10 +12,46 @@
       <el-descriptions-item label="类型">{{ part.type }}</el-descriptions-item>
       <el-descriptions-item label="子系统">{{ part.subsystem }}</el-descriptions-item>
       <el-descriptions-item label="当前版本">{{ part.current_version || 'N/A' }}</el-descriptions-item>
-      <el-descriptions-item label="状态">
-        <el-tag>{{ part.workflow_state }}</el-tag>
+      <el-descriptions-item label="生命周期">
+        <el-tag :type="part.lifecycle_state === '已发布' ? 'success' : 'info'">{{ part.lifecycle_state }}</el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="检入/检出">
+        <el-tag :type="part.check_state === '检出' ? 'warning' : 'info'">{{ part.check_state }}</el-tag>
       </el-descriptions-item>
     </el-descriptions>
+
+    <div style="margin-top:20px; display:flex; gap:10px;">
+      <el-button v-if="part.lifecycle_state === '已发布'" type="warning" @click="showChangeNotice = true">取消发布</el-button>
+      <template v-else>
+        <el-button v-if="part.check_state === '检入'" type="primary" @click="checkout">检出</el-button>
+        <el-button v-if="part.check_state === '检入'" type="success" @click="publish">发布</el-button>
+        <el-button v-if="part.check_state === '检出'" type="info" @click="showCheckin = true">检入</el-button>
+      </template>
+    </div>
+
+    <el-dialog v-model="showCheckin" title="检入零件" width="400px">
+      <el-upload action="#" :http-request="handleCheckin" :before-upload="beforeUpload">
+        <el-button type="primary">选择文件并检入</el-button>
+      </el-upload>
+    </el-dialog>
+
+    <el-dialog v-model="showChangeNotice" title="创建更改通告" width="500px">
+      <el-form label-width="80px">
+        <el-form-item label="通告标题">
+          <el-input v-model="cnForm.title" placeholder="请输入更改通告标题" />
+        </el-form-item>
+        <el-form-item label="变更原因">
+          <el-input v-model="cnForm.reason" type="textarea" placeholder="请输入变更原因" />
+        </el-form-item>
+        <el-form-item label="详细说明">
+          <el-input v-model="cnForm.description" type="textarea" placeholder="可选" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showChangeNotice = false">取消</el-button>
+        <el-button type="primary" @click="handleUnpublish">确认取消发布</el-button>
+      </template>
+    </el-dialog>
 
     <h3 style="margin-top:30px">版本历史</h3>
     <el-upload
@@ -49,6 +85,9 @@ import api from '../api'
 const route = useRoute()
 const part = ref(null)
 const versions = ref([])
+const showCheckin = ref(false)
+const showChangeNotice = ref(false)
+const cnForm = ref({ title: '', reason: '', description: '' })
 
 async function fetchPart() {
     const { data } = await api.get(`/parts/${route.params.id}`)
@@ -71,6 +110,67 @@ async function handleUpload({ file }) {
     formData.append('comment', '')
     await api.post(`/parts/${route.params.id}/versions`, formData)
     ElMessage.success('上传成功')
+    await fetchVersions()
+    await fetchPart()
+}
+
+async function checkout() {
+    await api.post(`/parts/${route.params.id}/checkout`)
+    ElMessage.success('检出成功')
+    await fetchPart()
+    // 下载文件
+    try {
+        const response = await api.get(`/parts/${route.params.id}/download`, { responseType: 'blob' })
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `${part.value.part_number}_${part.value.current_version}`)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.URL.revokeObjectURL(url)
+    } catch (e) {
+        ElMessage.warning('文件下载失败')
+    }
+}
+
+async function publish() {
+    await api.post(`/parts/${route.params.id}/publish`)
+    ElMessage.success('发布成功')
+    await fetchPart()
+}
+
+async function handleUnpublish() {
+    if (!cnForm.value.title || !cnForm.value.reason) {
+        ElMessage.warning('请填写标题和变更原因')
+        return
+    }
+    // 创建更改通告
+    const { data: cn } = await api.post('/change-notices/', {
+        part_id: route.params.id,
+        title: cnForm.value.title,
+        reason: cnForm.value.reason,
+        description: cnForm.value.description,
+    })
+    // 自动批准
+    await api.post(`/change-notices/${cn.id}/approve`, { approved: true })
+    // 取消发布
+    await api.post(`/parts/${route.params.id}/unpublish`, null, {
+        params: { change_notice_id: cn.id }
+    })
+    ElMessage.success('取消发布成功')
+    showChangeNotice.value = false
+    cnForm.value = { title: '', reason: '', description: '' }
+    await fetchPart()
+}
+
+async function handleCheckin({ file }) {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('comment', '')
+    await api.post(`/parts/${route.params.id}/checkin`, formData)
+    ElMessage.success('检入成功')
+    showCheckin.value = false
     await fetchVersions()
     await fetchPart()
 }

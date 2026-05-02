@@ -17,6 +17,10 @@ class Part(Base):
     template_id = Column(UUID(as_uuid=True), ForeignKey("part_number_templates.id"), nullable=True)
     current_version = Column(String(10))
     workflow_state = Column(String(50), default="设计中")
+    lifecycle_state = Column(String(20), default="工作中")  # 工作中 / 已发布
+    check_state = Column(String(20), default="检入")  # 检入 / 检出
+    checked_out_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    thumbnail_path = Column(String(500), nullable=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

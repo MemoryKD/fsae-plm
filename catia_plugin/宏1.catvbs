@@ -1,0 +1,196 @@
+' FSAE-PLM CATIA V5 Macro (CATScript compatible)
+' Server URL - change to your server address
+Const PLM_SERVER = "http://localhost:8000"
+Const API_PREFIX = "/api"
+
+Sub CATMain()
+    Dim choice
+    choice = InputBox("Enter command:" & vbCrLf & vbCrLf & _
+                       "1 - Save to PLM" & vbCrLf & _
+                       "2 - Check Naming" & vbCrLf & vbCrLf & _
+                       "Enter 1 or 2:", "FSAE-PLM", "1")
+
+    If choice = "1" Then
+        SaveToPLM
+    ElseIf choice = "2" Then
+        CheckNaming
+    ElseIf choice <> "" Then
+        MsgBox "Invalid choice. Enter 1 or 2.", vbExclamation
+    End If
+End Sub
+
+Sub SaveToPLM()
+    On Error Resume Next
+
+    Dim catia
+    Set catia = CATIA
+
+    Dim doc
+    Set doc = catia.ActiveDocument
+
+    Dim partNumber
+    Dim partName
+    Dim revision
+    Dim docType
+
+    docType = TypeName(doc)
+
+    If docType = "ProductDocument" Then
+        partNumber = doc.Product.Name
+        partName = doc.Product.Name
+        revision = "A"
+    ElseIf docType = "PartDocument" Then
+        partNumber = doc.Part.Name
+        partName = doc.Part.Name
+        revision = "A"
+    Else
+        MsgBox "Unsupported document type: " & docType, vbExclamation
+        Exit Sub
+    End If
+
+    If Err.Number <> 0 Then
+        MsgBox "Error reading document: " & Err.Description, vbCritical
+        Exit Sub
+    End If
+
+    If partNumber = "" Then
+        MsgBox "Please set part number first!", vbExclamation
+        Exit Sub
+    End If
+
+    Dim msg
+    msg = "Part Number: " & partNumber & vbCrLf & _
+          "Part Name: " & partName & vbCrLf & _
+          "Revision: " & revision & vbCrLf & vbCrLf & _
+          "Upload to PLM?"
+
+    If MsgBox(msg, vbYesNo + vbQuestion, "Save to PLM") = vbNo Then
+        Exit Sub
+    End If
+
+    ' Save to temp file
+    Dim tempPath
+    tempPath = Environ("TEMP") & "\" & partNumber & ".CATPart"
+    doc.SaveAs tempPath
+
+    If Err.Number <> 0 Then
+        MsgBox "Save failed: " & Err.Description, vbCritical
+        Exit Sub
+    End If
+
+    ' Upload via API
+    Dim result
+    result = UploadFile(tempPath, partNumber, partName, revision)
+
+    If result <> "" Then
+        MsgBox "Upload successful!", vbInformation
+    Else
+        MsgBox "Upload failed. Check network connection.", vbCritical
+    End If
+End Sub
+
+Sub CheckNaming()
+    On Error Resume Next
+
+    Dim doc
+    Set doc = CATIA.ActiveDocument
+
+    Dim partNumber
+    Dim docType
+    docType = TypeName(doc)
+
+    If docType = "ProductDocument" Then
+        partNumber = doc.Product.Name
+    ElseIf docType = "PartDocument" Then
+        partNumber = doc.Part.Name
+    End If
+
+    Dim url
+    url = PLM_SERVER & API_PREFIX & "/parts/check-name?number=" & partNumber
+
+    Dim response
+    response = HttpGet(url)
+
+    If response = "valid" Then
+        MsgBox "Naming check passed!", vbInformation
+    Else
+        MsgBox "Naming check failed: " & response, vbExclamation
+    End If
+End Sub
+
+Private Function UploadFile(filePath, partNumber, partName, revision)
+    On Error Resume Next
+
+    Dim http
+    Set http = CreateObject("MSXML2.XMLHTTP")
+
+    Dim url
+    url = PLM_SERVER & API_PREFIX & "/parts/" & partNumber & "/versions/"
+
+    Dim boundary
+    boundary = "----FormBoundary" & CStr(Timer * 1000)
+
+    Dim body
+    body = "--" & boundary & vbCrLf & _
+           "Content-Disposition: form-data; name=""file""; filename=""" & partNumber & ".CATPart""" & vbCrLf & _
+           "Content-Type: application/octet-stream" & vbCrLf & vbCrLf & _
+           ReadFileAsText(filePath) & vbCrLf & _
+           "--" & boundary & vbCrLf & _
+           "Content-Disposition: form-data; name=""comment""" & vbCrLf & vbCrLf & _
+           "Uploaded from CATIA" & vbCrLf & _
+           "--" & boundary & "--"
+
+    http.Open "POST", url, False
+    http.setRequestHeader "Content-Type", "multipart/form-data; boundary=" & boundary
+    http.send body
+
+    If Err.Number <> 0 Then
+        UploadFile = ""
+        Exit Function
+    End If
+
+    If http.Status = 200 Or http.Status = 201 Then
+        UploadFile = http.responseText
+    Else
+        UploadFile = ""
+    End If
+End Function
+
+Private Function HttpGet(url)
+    On Error Resume Next
+
+    Dim http
+    Set http = CreateObject("MSXML2.XMLHTTP")
+
+    http.Open "GET", url, False
+    http.send
+
+    If Err.Number <> 0 Then
+        HttpGet = ""
+        Exit Function
+    End If
+
+    If http.Status = 200 Then
+        HttpGet = http.responseText
+    Else
+        HttpGet = ""
+    End If
+End Function
+
+Private Function ReadFileAsText(filePath)
+    On Error Resume Next
+
+    Dim fso
+    Set fso = CreateObject("Scripting.FileSystemObject")
+
+    Dim file
+    Set file = fso.OpenTextFile(filePath, 1)
+
+    If Err.Number <> 0 Then
+        ReadFileAsText = ""
+        Exit Function
+    End If
+
+    ReadFileAsText = file.ReadAll
+    file.Close
+End Function

@@ -24,9 +24,38 @@ class PartResponse(BaseModel):
     subsystem: str | None
     current_version: str | None
     workflow_state: str
+    lifecycle_state: str
+    check_state: str
+    checked_out_by: UUID | None
+    thumbnail_path: str | None
     created_by: UUID | None
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class PartCheckout(BaseModel):
+    message: str = "检出成功"
+
+
+class PartCheckin(BaseModel):
+    comment: str | None = None
+
+
+class PartPublish(BaseModel):
+    message: str = "发布成功"
+
+
+class NextPartNumberResponse(BaseModel):
+    part_number: str
+    template_name: str
+    subsystem_code: str
+
+
+class AutoPartCreate(BaseModel):
+    name: str = Field(..., max_length=200)
+    type: str = Field(default="part")
+    subsystem: str | None = None
+    template_id: UUID | None = None

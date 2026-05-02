@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import auth, users, parts, versions, templates, workflows, bom
+from app.routers import auth, users, parts, versions, templates, workflows, bom, change_notices
 
 
 @asynccontextmanager
@@ -29,6 +29,7 @@ app.include_router(versions.router, prefix="/api/parts", tags=["版本管理"])
 app.include_router(templates.router, prefix="/api/templates", tags=["编号规则"])
 app.include_router(workflows.router, prefix="/api/workflows", tags=["工作流"])
 app.include_router(bom.router, prefix="/api/parts", tags=["BOM管理"])
+app.include_router(change_notices.router, prefix="/api/change-notices", tags=["更改通告"])
 
 
 @app.get("/api/health")
