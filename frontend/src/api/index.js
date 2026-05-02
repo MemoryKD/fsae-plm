@@ -13,10 +13,10 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && error.config.url !== '/auth/login') {
             useAuthStore().logout()
             window.location.href = '/login'
-        } else {
+        } else if (error.response?.status !== 401) {
             ElMessage.error(error.response?.data?.detail || '请求失败')
         }
         return Promise.reject(error)

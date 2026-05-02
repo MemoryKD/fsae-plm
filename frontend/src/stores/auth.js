@@ -11,9 +11,14 @@ export const useAuthStore = defineStore('auth', {
             const { data } = await api.post('/auth/login', { username, password })
             this.token = data.access_token
             localStorage.setItem('token', data.access_token)
-            const { data: user } = await api.get('/auth/me')
-            this.user = user
-            localStorage.setItem('user', JSON.stringify(user))
+            try {
+                const { data: user } = await api.get('/auth/me')
+                this.user = user
+                localStorage.setItem('user', JSON.stringify(user))
+            } catch (e) {
+                this.user = { username, role: 'designer' }
+                localStorage.setItem('user', JSON.stringify(this.user))
+            }
         },
         logout() {
             this.token = ''
