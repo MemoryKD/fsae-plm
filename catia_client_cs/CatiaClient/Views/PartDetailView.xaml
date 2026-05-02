@@ -1,0 +1,80 @@
+<UserControl x:Class="CatiaClient.Views.PartDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <!-- Top bar -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="10">
+            <Button Content="← 返回" Command="{Binding BackCommand}"/>
+            <Button Content="检出" Command="{Binding CheckoutCommand}"/>
+            <Button Content="检入" Command="{Binding CheckinCommand}"/>
+            <Button Content="发布" Command="{Binding PublishCommand}"/>
+            <Button Content="同步属性到 CATIA" Command="{Binding SyncCommand}"/>
+            <Button Content="刷新" Command="{Binding RefreshCommand}"/>
+        </StackPanel>
+
+        <ScrollViewer>
+            <StackPanel Margin="15">
+                <!-- Part info -->
+                <GroupBox Header="基本信息">
+                    <StackPanel Margin="10">
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="零件号: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.PartNumber}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="名称: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.Name}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="类型: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.Type}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="子系统: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.Subsystem}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="版本: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.CurrentVersion}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="生命周期: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.LifecycleState}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="状态: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.CheckState}"/></StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Branch info -->
+                <GroupBox Header="分支信息" Margin="0,10,0,0" Visibility="{Binding CurrentPart.DerivedFromId, Converter={StaticResource NullToVisibility}}">
+                    <StackPanel Margin="10">
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="来源 ID: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.DerivedFromId}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3"><TextBlock Text="分支名: " FontWeight="Bold" Width="80"/><TextBlock Text="{Binding CurrentPart.BranchName}"/></StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Versions -->
+                <GroupBox Header="版本历史" Margin="0,10,0,0">
+                    <ListView ItemsSource="{Binding Versions}" Margin="5" Height="150">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="版本号" DisplayMemberBinding="{Binding VersionNumber}" Width="80"/>
+                                <GridViewColumn Header="文件类型" DisplayMemberBinding="{Binding FileType}" Width="80"/>
+                                <GridViewColumn Header="大小" Width="80">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock>
+                                                <TextBlock.Text>
+                                                    <Binding Path="FileSize" StringFormat="{}{0:N0} bytes"/>
+                                                </TextBlock.Text>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="备注" DisplayMemberBinding="{Binding Comment}" Width="200"/>
+                                <GridViewColumn Header="时间" DisplayMemberBinding="{Binding CreatedAt}" Width="140"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </GroupBox>
+
+                <!-- BOM -->
+                <GroupBox Header="BOM 物料清单" Margin="0,10,0,0">
+                    <ListView ItemsSource="{Binding BomItems}" Margin="5" Height="120">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="零件 ID" DisplayMemberBinding="{Binding PartId}" Width="200"/>
+                                <GridViewColumn Header="数量" DisplayMemberBinding="{Binding Quantity}" Width="60"/>
+                                <GridViewColumn Header="层级" DisplayMemberBinding="{Binding Level}" Width="60"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <ProgressBar DockPanel.Dock="Bottom" IsIndeterminate="{Binding IsLoading}" Height="3"/>
+    </DockPanel>
+</UserControl>

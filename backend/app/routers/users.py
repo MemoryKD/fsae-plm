@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserResponse
-from app.services.auth_service import get_current_user
+from app.services.auth_service import get_current_user, require_permission
 
 router = APIRouter()
 
@@ -14,10 +14,8 @@ router = APIRouter()
 @router.get("/", response_model=list[UserResponse])
 async def list_users(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("manage_users")),
 ):
-    if current_user.role not in ("admin", "manager"):
-        raise HTTPException(status_code=403, detail="权限不足")
     result = await db.execute(select(User))
     return [UserResponse.model_validate(u) for u in result.scalars().all()]
 
@@ -27,10 +25,8 @@ async def update_role(
     user_id: UUID,
     role_data: dict,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("manage_roles")),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="仅管理员可修改角色")
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

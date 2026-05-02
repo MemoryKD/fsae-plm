@@ -9,6 +9,7 @@ class TemplateCreate(BaseModel):
     separator: str = Field(default="-", max_length=5)
     digit_count: int = Field(default=3, ge=1, le=6)
     subsystem_codes: dict[str, str] = Field(default_factory=dict)
+    type_codes: dict[str, str] = Field(default_factory=dict)
 
 
 class TemplateUpdate(BaseModel):
@@ -17,6 +18,7 @@ class TemplateUpdate(BaseModel):
     separator: str | None = None
     digit_count: int | None = None
     subsystem_codes: dict[str, str] | None = None
+    type_codes: dict[str, str] | None = None
 
 
 class TemplateResponse(BaseModel):
@@ -26,6 +28,7 @@ class TemplateResponse(BaseModel):
     separator: str
     digit_count: int
     subsystem_codes: dict[str, str]
+    type_codes: dict[str, str]
     created_by: UUID | None
     created_at: datetime
 

@@ -55,11 +55,11 @@ class PLMClient:
         resp.raise_for_status()
         return resp.json()
 
-    def get_next_part_number(self, template_id: str, subsystem_code: str) -> dict:
+    def get_next_part_number(self, template_id: str, subsystem_code: str, part_type: str = "part") -> dict:
         resp = self.session.get(
             f"{self.base_url}/api/parts/next-number",
             headers=self._headers(),
-            params={"template_id": template_id, "subsystem_code": subsystem_code},
+            params={"template_id": template_id, "subsystem_code": subsystem_code, "part_type": part_type},
         )
         resp.raise_for_status()
         return resp.json()
@@ -133,6 +133,18 @@ class PLMClient:
                 f.write(chunk)
         return save_path
 
+    def download_version(self, part_id: str, version_id: str, save_path: str) -> str:
+        resp = self.session.get(
+            f"{self.base_url}/api/parts/{part_id}/versions/{version_id}/download",
+            headers=self._headers(),
+            stream=True,
+        )
+        resp.raise_for_status()
+        with open(save_path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+        return save_path
+
     def create_change_notice(self, part_id: str, title: str, reason: str, description: str = "") -> dict:
         resp = self.session.post(
             f"{self.base_url}/api/change-notices/",
@@ -186,3 +198,48 @@ class PLMClient:
         )
         resp.raise_for_status()
         return resp.json()
+
+    def get_bom(self, part_id: str) -> list:
+        resp = self.session.get(
+            f"{self.base_url}/api/parts/{part_id}/bom", headers=self._headers()
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def add_bom_item(self, assembly_id: str, part_id: str, quantity: int = 1, level: int = 0) -> dict:
+        resp = self.session.post(
+            f"{self.base_url}/api/parts/{assembly_id}/bom",
+            headers=self._headers(),
+            json={"part_id": part_id, "quantity": quantity, "level": level},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def remove_bom_item(self, assembly_id: str, bom_item_id: str) -> dict:
+        resp = self.session.delete(
+            f"{self.base_url}/api/parts/{assembly_id}/bom/{bom_item_id}",
+            headers=self._headers(),
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def download_assembly(self, part_id: str, save_dir: str) -> list[str]:
+        """下载装配体及所有关联零件到指定目录"""
+        resp = self.session.get(
+            f"{self.base_url}/api/parts/{part_id}/download-all",
+            headers=self._headers(),
+            stream=True,
+        )
+        resp.raise_for_status()
+        import zipfile, tempfile, os
+        zip_path = os.path.join(save_dir, f"{part_id}.zip")
+        with open(zip_path, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+        # Extract
+        extracted = []
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(save_dir)
+            extracted = zf.namelist()
+        os.remove(zip_path)
+        return extracted

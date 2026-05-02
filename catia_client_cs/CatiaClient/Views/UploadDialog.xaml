@@ -1,0 +1,36 @@
+<Window x:Class="CatiaClient.Views.UploadDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="新建零件" Height="400" Width="500"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="20">
+        <TextBlock Text="名称" Margin="0,0,0,5"/>
+        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,15"/>
+
+        <TextBlock Text="类型" Margin="0,0,0,5"/>
+        <ComboBox SelectedItem="{Binding Type}" Margin="0,0,0,15">
+            <ComboBoxItem Content="part"/>
+            <ComboBoxItem Content="assembly"/>
+            <ComboBoxItem Content="document"/>
+        </ComboBox>
+
+        <TextBlock Text="编号模板" Margin="0,0,0,5"/>
+        <ComboBox ItemsSource="{Binding Templates}" DisplayMemberPath="Name"
+                  SelectedItem="{Binding SelectedTemplate}" Margin="0,0,0,15"/>
+
+        <TextBlock Text="子系统" Margin="0,0,0,5"/>
+        <ComboBox ItemsSource="{Binding Subsystems}" SelectedItem="{Binding Subsystem}" Margin="0,0,0,15"/>
+
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <TextBlock Text="编号预览: " FontWeight="Bold"/>
+            <TextBlock Text="{Binding PreviewNumber}" Foreground="Green"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="取消" Command="{Binding CancelCommand}"/>
+            <Button Content="创建" Command="{Binding CreateCommand}"/>
+        </StackPanel>
+
+        <ProgressBar IsIndeterminate="{Binding IsLoading}" Height="4" Margin="0,10,0,0"/>
+    </StackPanel>
+</Window>

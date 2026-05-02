@@ -4,7 +4,7 @@ from pathlib import Path
 CONFIG_FILE = Path(__file__).parent / "config.json"
 
 DEFAULT_CONFIG = {
-    "server_url": "http://localhost:8000",
+    "server_url": "http://localhost",
     "username": "",
     "remember_me": True,
 }

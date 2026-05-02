@@ -52,6 +52,18 @@ class CATIABridge:
             result["plm_version"] = props.get("PLM_Version", "")
             result["plm_state"] = props.get("PLM_State", "")
             result["plm_name"] = props.get("PLM_Name", "")
+            # Also read from Product built-in properties
+            try:
+                product = doc.Product
+                if not result["part_number"]:
+                    result["part_number"] = getattr(product, "PartNumber", "")
+                if not result["plm_version"]:
+                    result["plm_version"] = getattr(product, "Revision", "")
+                if not result["plm_name"]:
+                    result["plm_name"] = getattr(product, "Nomenclature", "")
+                result["definition"] = getattr(product, "Definition", "")
+            except Exception:
+                pass
             return result
         except Exception as e:
             print(f"获取活动文档失败: {e}")
@@ -101,6 +113,23 @@ class CATIABridge:
             print(f"写入属性失败: {e}")
             return False
 
+    def _set_product_properties(self, doc_path: str, part_data: dict):
+        """写入 CATIA Product 对象的内置属性（基本信息）"""
+        if not self.connected:
+            return False
+        try:
+            doc = self.catia.Documents.Open(doc_path)
+            product = doc.Product
+            product.PartNumber = part_data.get("part_number", "")
+            product.Revision = part_data.get("current_version", "")
+            product.Definition = part_data.get("name", "")
+            product.Nomenclature = part_data.get("name", "")
+            doc.Save()
+            return True
+        except Exception as e:
+            print(f"写入 Product 属性失败: {e}")
+            return False
+
     def sync_plm_properties(self, doc_path: str, part_data: dict):
         """同步 PLM 属性到 CATIA 文件"""
         props = {
@@ -109,9 +138,11 @@ class CATIABridge:
             "PLM_State": f"{part_data.get('lifecycle_state', '')}-{part_data.get('check_state', '')}",
             "PLM_Name": part_data.get("name", ""),
         }
-        return self.set_custom_properties(doc_path, props)
+        self.set_custom_properties(doc_path, props)
+        self._set_product_properties(doc_path, part_data)
+        return True
 
-    def capture_thumbnail(self, output_path: str, width: int = 400, height: int = 300) -> Optional[str]:
+    def capture_thumbnail(self, output_path: str, width: int = 800, height: int = 600) -> Optional[str]:
         """截取当前 3D 视图作为缩略图"""
         if not self.connected:
             return None

@@ -23,7 +23,7 @@ class LoginFrame(ttk.Frame):
         ttk.Label(frm_server, text="服务器地址:", width=10).pack(side=LEFT)
         self.entry_server = ttk.Entry(frm_server)
         self.entry_server.pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
-        self.entry_server.insert(0, "http://localhost:8000")
+        self.entry_server.insert(0, "http://localhost")
 
         # 用户名
         frm_user = ttk.Frame(self)

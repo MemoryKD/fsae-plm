@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models.template import PartNumberTemplate
 from app.models.user import User
 from app.schemas.template import TemplateCreate, TemplateUpdate, TemplateResponse
-from app.services.auth_service import get_current_user
+from app.services.auth_service import get_current_user, require_permission
 
 router = APIRouter()
 
@@ -22,10 +22,8 @@ async def list_templates(db: AsyncSession = Depends(get_db)):
 async def create_template(
     data: TemplateCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("manage_templates")),
 ):
-    if current_user.role not in ("admin", "manager"):
-        raise HTTPException(status_code=403, detail="权限不足")
     template = PartNumberTemplate(**data.model_dump(), created_by=current_user.id)
     db.add(template)
     await db.commit()
@@ -38,10 +36,8 @@ async def update_template(
     template_id: UUID,
     data: TemplateUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("manage_templates")),
 ):
-    if current_user.role not in ("admin", "manager"):
-        raise HTTPException(status_code=403, detail="权限不足")
     result = await db.execute(select(PartNumberTemplate).where(PartNumberTemplate.id == template_id))
     template = result.scalar_one_or_none()
     if not template:
@@ -51,3 +47,18 @@ async def update_template(
     await db.commit()
     await db.refresh(template)
     return TemplateResponse.model_validate(template)
+
+
+@router.delete("/{template_id}")
+async def delete_template(
+    template_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("manage_templates")),
+):
+    result = await db.execute(select(PartNumberTemplate).where(PartNumberTemplate.id == template_id))
+    template = result.scalar_one_or_none()
+    if not template:
+        raise HTTPException(status_code=404, detail="模板不存在")
+    await db.delete(template)
+    await db.commit()
+    return {"message": "已删除"}

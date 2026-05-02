@@ -6,15 +6,6 @@ from ttkbootstrap.constants import *
 from tkinter import filedialog, messagebox
 
 
-SUBSYSTEM_MAP = {
-    "SUS": "悬架",
-    "BDY": "车身",
-    "PWT": "动力总成",
-    "ELC": "电气",
-    "AER": "空气动力学",
-}
-
-
 class UploadDialog:
     def __init__(self, parent, api_client, catia_bridge=None):
         self.parent = parent
@@ -72,8 +63,18 @@ class UploadDialog:
         row.pack(fill=X, pady=3)
         ttk.Label(row, text="类型:", width=10).pack(side=LEFT)
         self.type_var = tk.StringVar(value="part")
-        ttk.Combobox(row, textvariable=self.type_var, values=["part", "assembly", "document"],
-                     state="readonly").pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
+        type_combo = ttk.Combobox(row, textvariable=self.type_var, values=["part", "assembly", "document"],
+                     state="readonly")
+        type_combo.pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
+        type_combo.bind("<<ComboboxSelected>>", lambda e: self._update_preview())
+
+        row = ttk.Frame(info_frame)
+        row.pack(fill=X, pady=3)
+        ttk.Label(row, text="子系统:", width=10).pack(side=LEFT)
+        self.subsystem_var = tk.StringVar()
+        self.subsys_combo = ttk.Combobox(row, textvariable=self.subsystem_var, state="readonly")
+        self.subsys_combo.pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
+        self.subsys_combo.bind("<<ComboboxSelected>>", lambda e: self._update_preview())
 
         row = ttk.Frame(info_frame)
         row.pack(fill=X, pady=3)
@@ -85,17 +86,7 @@ class UploadDialog:
         self.template_combo.pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
         if template_names:
             self.template_combo.current(0)
-        self.template_combo.bind("<<ComboboxSelected>>", lambda e: self._update_preview())
-
-        row = ttk.Frame(info_frame)
-        row.pack(fill=X, pady=3)
-        ttk.Label(row, text="子系统:", width=10).pack(side=LEFT)
-        self.subsystem_var = tk.StringVar()
-        subsys_display = [f"{k} - {v}" for k, v in SUBSYSTEM_MAP.items()]
-        self.subsys_combo = ttk.Combobox(row, textvariable=self.subsystem_var,
-                                         values=subsys_display, state="readonly")
-        self.subsys_combo.pack(side=LEFT, fill=X, expand=True, padx=(10, 0))
-        self.subsys_combo.bind("<<ComboboxSelected>>", lambda e: self._update_preview())
+        self.template_combo.bind("<<ComboboxSelected>>", lambda e: self._on_template_change())
 
         preview_frame = ttk.LabelFrame(main, text="零件号预览")
         preview_frame.pack(fill=X, pady=5, padx=10)
@@ -115,6 +106,10 @@ class UploadDialog:
 
         self.msg_var = tk.StringVar()
         ttk.Label(main, textvariable=self.msg_var, bootstyle=DANGER).pack(fill=X, pady=5)
+
+        # 初始化子系统和预览（所有控件已创建完毕）
+        if template_names:
+            self._on_template_change()
 
     def _select_file(self):
         path = filedialog.askopenfilename(
@@ -148,14 +143,29 @@ class UploadDialog:
                 except Exception:
                     pass
 
+    def _on_template_change(self):
+        """模板切换时更新子系统下拉列表"""
+        template_name = self.template_var.get()
+        template = next((t for t in self.templates if t["name"] == template_name), None)
+        if template and template.get("subsystem_codes"):
+            subsys_list = [f"{code} - {desc}" for code, desc in template["subsystem_codes"].items()]
+            self.subsys_combo.config(values=subsys_list)
+            if subsys_list:
+                self.subsys_combo.current(0)
+        else:
+            self.subsys_combo.config(values=[])
+            self.subsystem_var.set("")
+        self._update_preview()
+
     def _update_preview(self):
         template_name = self.template_var.get()
         template = next((t for t in self.templates if t["name"] == template_name), None)
         if not template:
             return
         subsys = self.subsystem_var.get().split(" - ")[0] if self.subsystem_var.get() else ""
+        part_type = self.type_var.get()
         try:
-            result = self.api.get_next_part_number(template["id"], subsys)
+            result = self.api.get_next_part_number(template["id"], subsys, part_type)
             self.preview_var.set(result.get("part_number", "预览失败"))
             check = self.api.check_part_number(result["part_number"])
             if check.get("exists"):

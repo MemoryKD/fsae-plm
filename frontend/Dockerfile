@@ -5,5 +5,6 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
+FROM busybox
+COPY --from=build /app/dist /site
+CMD ["sh", "-c", "cp -r /site/* /out/"]

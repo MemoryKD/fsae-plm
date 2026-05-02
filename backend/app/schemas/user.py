@@ -6,8 +6,10 @@ from pydantic import BaseModel, Field
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=2, max_length=50)
     password: str = Field(..., min_length=6)
-    role: str = Field(default="designer")
-    team: str | None = None
+    full_name: str = Field(..., max_length=100)
+    department: str | None = None
+    join_year: str | None = None
+    phone: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -18,8 +20,14 @@ class UserLogin(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     username: str
-    role: str
-    team: str | None
+    full_name: str | None = None
+    department: str | None = None
+    join_year: str | None = None
+    phone: str | None = None
+    role: str | None = None
+    role_id: UUID | None = None
+    team: str | None = None
+    status: str = "approved"
     created_at: datetime
 
     class Config:
@@ -29,3 +37,4 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    permissions: list[str] = []

@@ -9,6 +9,8 @@ class PartCreate(BaseModel):
     type: str = Field(default="part")
     subsystem: str | None = None
     template_id: UUID | None = None
+    derived_from_id: UUID | None = None
+    branch_name: str | None = None
 
 
 class PartUpdate(BaseModel):
@@ -28,6 +30,9 @@ class PartResponse(BaseModel):
     check_state: str
     checked_out_by: UUID | None
     thumbnail_path: str | None
+    derived_from_id: UUID | None = None
+    branch_name: str | None = None
+    branch_created_at: datetime | None = None
     created_by: UUID | None
     created_at: datetime
     updated_at: datetime
@@ -52,6 +57,7 @@ class NextPartNumberResponse(BaseModel):
     part_number: str
     template_name: str
     subsystem_code: str
+    type_code: str = ""
 
 
 class AutoPartCreate(BaseModel):

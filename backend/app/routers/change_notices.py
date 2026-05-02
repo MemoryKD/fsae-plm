@@ -9,7 +9,7 @@ from app.models.change_notice import ChangeNotice
 from app.schemas.change_notice import (
     ChangeNoticeCreate, ChangeNoticeResponse, ChangeNoticeApprove,
 )
-from app.services.auth_service import get_current_user
+from app.services.auth_service import get_current_user, require_permission
 
 router = APIRouter()
 
@@ -58,6 +58,17 @@ async def create_change_notice(
     return ChangeNoticeResponse.model_validate(cn)
 
 
+@router.get("/pending", response_model=list[ChangeNoticeResponse])
+async def list_pending_change_notices(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("approve_change_notices")),
+):
+    result = await db.execute(
+        select(ChangeNotice).where(ChangeNotice.status == "待审批").order_by(ChangeNotice.created_at.desc())
+    )
+    return [ChangeNoticeResponse.model_validate(cn) for cn in result.scalars().all()]
+
+
 @router.get("/{notice_id}", response_model=ChangeNoticeResponse)
 async def get_change_notice(
     notice_id: UUID,
@@ -76,7 +87,7 @@ async def approve_change_notice(
     notice_id: UUID,
     data: ChangeNoticeApprove,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("approve_change_notices")),
 ):
     result = await db.execute(select(ChangeNotice).where(ChangeNotice.id == notice_id))
     cn = result.scalar_one_or_none()
@@ -86,8 +97,18 @@ async def approve_change_notice(
     if cn.status != "待审批":
         raise HTTPException(status_code=400, detail="该通告不在待审批状态")
 
-    cn.status = "已批准" if data.approved else "已拒绝"
-    cn.approved_by = current_user.id
+    if data.approved:
+        cn.status = "已批准"
+        cn.approved_by = current_user.id
+        # Auto-trigger unpublish
+        from app.services.part_service import unpublish_part
+        try:
+            await unpublish_part(cn.part_id, db, current_user.id, cn.id)
+        except Exception:
+            pass  # unpublish may fail if part state doesn't allow it
+    else:
+        cn.status = "已拒绝"
+        cn.approved_by = current_user.id
     await db.commit()
     await db.refresh(cn)
     return ChangeNoticeResponse.model_validate(cn)

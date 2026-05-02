@@ -78,6 +78,17 @@ class App(ttk.Window):
         self.parts_frame.pack(fill=BOTH, expand=True)
         self.parts_frame.refresh()
 
+        # 模板诊断
+        try:
+            templates = self.api.get_templates()
+            count = len(templates)
+            if count == 0:
+                from tkinter import messagebox
+                messagebox.showinfo("提示", "未找到编号模板，请先在网页端创建编号规则。")
+            self.parts_frame.status_var.set(f"已连接 | 共 {len(self.parts_frame.cards)} 个零件 | {count} 个编号模板")
+        except Exception:
+            pass
+
     def _show_part_detail(self, part_data: dict):
         """显示零件详情"""
         PartDetailDialog(self, self.api, part_data)
@@ -140,12 +151,14 @@ class App(ttk.Window):
                 messagebox.showinfo("PLM", "该零件未检出，无法检入")
                 return
 
-            # 保存临时文件并检入
+            # 同步 PLM 属性到 CATIA 文档后再保存上传
+            self.catia.sync_plm_properties(doc["path"], part)
             temp_path = self.catia.get_temp_save_path(doc["part_number"])
             if self.catia.save_document_copy(temp_path):
-                self.api.checkin(part["id"], temp_path, "从 CATIA 客户端检入")
-                self.catia.sync_plm_properties(temp_path, self.api.get_part(part["id"]))
-                messagebox.showinfo("成功", f"零件 {doc['part_number']} 检入成功")
+                result = self.api.checkin(part["id"], temp_path, "从 CATIA 客户端检入")
+                # 检入后同步新版本号到 CATIA 文档
+                self.catia.sync_plm_properties(doc["path"], result)
+                messagebox.showinfo("成功", f"零件 {doc['part_number']} 检入成功，版本: {result.get('current_version', '')}")
                 self.parts_frame.refresh()
         except Exception as e:
             messagebox.showerror("错误", f"检入失败: {e}")
