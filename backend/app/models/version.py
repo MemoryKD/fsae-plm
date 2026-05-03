@@ -29,5 +29,7 @@ class Version(Base):
     file_type = Column(String(50))
     # 版本变更说明（检入时填写）
     comment = Column(Text)
+    # 文件 SHA-256 哈希值，用于检入校验（防止重复上传、校验文件一致性）
+    file_hash = Column(String(64))
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
