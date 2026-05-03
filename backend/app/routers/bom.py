@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.bom import BomItemCreate, BomItemResponse
 from app.services.bom_service import add_bom_item, get_bom, export_bom_excel, remove_bom_item, get_assembly_parts
-from app.services.auth_service import get_current_user
+from app.services.auth_service import get_current_user, require_permission
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ async def add_bom(
     part_id: UUID,
     data: BomItemCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("manage_bom")),
 ):
     return await add_bom_item(part_id, data, db)
 
@@ -51,7 +51,7 @@ async def delete_bom_item(
     part_id: UUID,
     bom_item_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission("manage_bom")),
 ):
     return await remove_bom_item(bom_item_id, db)
 
