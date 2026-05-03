@@ -164,11 +164,40 @@ async def checkout_part(part_id, db: AsyncSession, user_id) -> PartResponse:
     return PartResponse.model_validate(part)
 
 
+# 合法的 CAD 文件扩展名（白名单）
+ALLOWED_CAD_EXTENSIONS = {
+    "catpart", "catproduct", "catdrawing",
+    "step", "stp",
+    "igs", "iges",
+    "stl",
+    "3dxml",
+}
+
+
+async def _get_latest_version(part_id, db: AsyncSession):
+    """获取零件的最新版本记录"""
+    from app.models.version import Version
+    from sqlalchemy import desc
+    result = await db.execute(
+        select(Version).where(Version.part_id == part_id)
+        .order_by(desc(Version.created_at)).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def checkin_part(
     part_id, comment: str, file: UploadFile,
     db: AsyncSession, user_id
 ) -> PartResponse:
-    """检入零件：上传新文件，自动递增小版本号（A.1 -> A.2）"""
+    """检入零件：上传新文件，自动递增小版本号（A.1 -> A.2）
+
+    校验规则：
+    1. 文件扩展名必须是合法的 CAD 格式
+    2. 文件类型必须与该零件上一版本一致
+    3. 文件内容不能与上一版本完全相同（SHA-256 哈希比对）
+    """
+    import hashlib
+
     result = await db.execute(select(Part).where(Part.id == part_id))
     part = result.scalar_one_or_none()
     if not part:
@@ -176,6 +205,38 @@ async def checkin_part(
 
     if part.check_state != "检出":
         raise HTTPException(status_code=400, detail="零件未检出，无法检入")
+
+    # 读取文件内容
+    content = await file.read()
+
+    # --- 文件校验 ---
+    # 1. 扩展名校验：只允许合法 CAD 格式
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ALLOWED_CAD_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件格式: .{ext}，仅允许 CAD 格式文件"
+        )
+
+    # 2. 文件类型一致性：与上一版本对比
+    last_version = await _get_latest_version(part_id, db)
+    if last_version and last_version.file_type:
+        if ext != last_version.file_type.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"文件类型不一致: 该零件使用 .{last_version.file_type} 格式，上传的文件是 .{ext}"
+            )
+
+    # 3. 文件哈希计算（SHA-256）
+    file_hash = hashlib.sha256(content).hexdigest()
+
+    # 4. 重复文件检测：哈希与上一版本相同则拒绝
+    if last_version and last_version.file_hash == file_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="文件内容与上一版本完全相同，未检测到修改"
+        )
 
     # 装配体检入前，校验所有子件必须已检入（保证数据一致性）
     if part.type == "assembly":
@@ -192,9 +253,8 @@ async def checkin_part(
     # 检入递增小版本号：A.1 -> A.2, A.2 -> A.3 ...
     new_version = next_minor_version(part.current_version or "A.0")
 
-    content = await file.read()
     storage = get_storage()
-    file_path, file_size = await storage.save(content, file.filename)
+    file_path, file_size = await storage.save(content, filename)
 
     from app.models.version import Version
     version = Version(
@@ -202,7 +262,8 @@ async def checkin_part(
         version_number=new_version,
         file_path=file_path,
         file_size=file_size,
-        file_type=file.filename.split(".")[-1] if file.filename else None,
+        file_type=ext if ext else None,
+        file_hash=file_hash,
         comment=comment,
         created_by=user_id,
     )
@@ -310,7 +371,7 @@ async def get_latest_version_file(part_id, db: AsyncSession):
 
 
 async def delete_part(part_id, db: AsyncSession, user_id):
-    """删除零件，级联清理关联的版本记录和 BOM 引用"""
+    """删除零件，级联清理关联的版本记录、BOM 引用和更改通告"""
     result = await db.execute(select(Part).where(Part.id == part_id))
     part = result.scalar_one_or_none()
     if not part:
@@ -335,6 +396,12 @@ async def delete_part(part_id, db: AsyncSession, user_id):
     bom_assembly_result = await db.execute(select(BomItem).where(BomItem.assembly_id == part_id))
     for b in bom_assembly_result.scalars().all():
         await db.delete(b)
+
+    # 删除关联的更改通告
+    from app.models.change_notice import ChangeNotice
+    cn_result = await db.execute(select(ChangeNotice).where(ChangeNotice.part_id == part_id))
+    for cn in cn_result.scalars().all():
+        await db.delete(cn)
 
     await db.delete(part)
     await db.commit()
