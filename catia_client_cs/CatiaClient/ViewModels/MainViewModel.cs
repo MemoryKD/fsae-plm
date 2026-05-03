@@ -11,6 +11,7 @@ public class MainViewModel : ViewModelBase
     private ViewModelBase _currentView;
     private readonly Services.ApiClient _api;
     private readonly Services.CatiaService _catia;
+    private string _catiaStatus = "未连接";
 
     /// <summary>
     /// 初始化主窗口，创建 API 客户端和 CATIA 服务，连接 CATIA 并显示登录页面。
@@ -19,7 +20,7 @@ public class MainViewModel : ViewModelBase
     {
         _api = new Services.ApiClient();
         _catia = new Services.CatiaService();
-        _catia.Connect();
+        RefreshCatiaConnection();
         _currentView = new LoginViewModel(_api, OnLoginSuccess, OnRegister);
     }
 
@@ -31,6 +32,42 @@ public class MainViewModel : ViewModelBase
     {
         get => _currentView;
         set => SetProperty(ref _currentView, value);
+    }
+
+    /// <summary>CATIA 连接状态文字</summary>
+    public string CatiaStatus
+    {
+        get => _catiaStatus;
+        set => SetProperty(ref _catiaStatus, value);
+    }
+
+    /// <summary>是否已连接到 CATIA</summary>
+    public bool IsCatiaConnected => _catia.IsConnected;
+
+    /// <summary>重新连接 CATIA 命令</summary>
+    public ICommand ReconnectCatiaCommand => new RelayCommand(() => RefreshCatiaConnection());
+
+    /// <summary>
+    /// 刷新 CATIA 连接状态并更新 UI 显示。
+    /// </summary>
+    private void RefreshCatiaConnection()
+    {
+        _catia.Connect();
+        if (_catia.IsConnected)
+        {
+            CatiaStatus = "CATIA 已连接";
+        }
+        else
+        {
+            var error = _catia.LastError ?? "未知错误";
+            CatiaStatus = $"CATIA 未连接";
+            System.Windows.MessageBox.Show(
+                $"无法连接到 CATIA：\n{error}\n\n请确保 CATIA 已启动并正在运行。",
+                "CATIA 连接失败",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
+        }
+        OnPropertyChanged(nameof(IsCatiaConnected));
     }
 
     /// <summary>登录成功后导航到零件列表页面</summary>
@@ -64,9 +101,10 @@ public class MainViewModel : ViewModelBase
         CurrentView = new PartsViewModel(_api, _catia, OnPartSelected, OnLogout);
     }
 
-    /// <summary>退出登录，返回登录页面</summary>
+    /// <summary>退出登录，清除 token 并返回登录页面</summary>
     private void OnLogout()
     {
+        _api.ClearToken();
         CurrentView = new LoginViewModel(_api, OnLoginSuccess, OnRegister);
     }
 }
