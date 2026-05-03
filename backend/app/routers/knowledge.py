@@ -153,6 +153,8 @@ async def update_article(
     article = result.scalar_one_or_none()
     if not article:
         raise HTTPException(status_code=404, detail="文章不存在")
+    if article.author_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="只能编辑自己的文章")
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(article, key, value)
     await db.commit()
