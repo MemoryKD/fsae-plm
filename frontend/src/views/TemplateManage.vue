@@ -135,7 +135,7 @@ function previewNumber(row) {
 async function fetchTemplates() {
   loading.value = true
   try {
-    const { data } = await api.get('/templates')
+    const { data } = await api.get('/templates/')
     templates.value = data
   } catch { /* handled */ } finally {
     loading.value = false
@@ -216,7 +216,7 @@ async function saveTemplate() {
       await api.put(`/templates/${editing.value.id}`, payload)
       ElMessage.success('模板已更新')
     } else {
-      await api.post('/templates', payload)
+      await api.post('/templates/', payload)
       ElMessage.success('模板已创建')
     }
     showDialog.value = false
