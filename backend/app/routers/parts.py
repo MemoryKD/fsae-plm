@@ -26,6 +26,7 @@
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -204,6 +205,52 @@ async def get_3d_preview(
     if not path:
         raise HTTPException(status_code=404, detail="3D 预览不可用")
     return FileResponse(path, media_type="model/gltf-binary")
+
+
+@router.head("/{part_id}/preview")
+async def head_3d_preview(
+    part_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """检查 3D 预览文件是否存在（HEAD 请求）"""
+    from app.services.preview_service import get_preview_path
+    path = get_preview_path(str(part_id))
+    if not path:
+        raise HTTPException(status_code=404, detail="3D 预览不可用")
+    return None
+
+
+@router.post("/{part_id}/generate-preview")
+async def generate_3d_preview(
+    part_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("checkin_parts")),
+):
+    """手动触发 3D 预览生成（用于已有零件补充预览）"""
+    from app.services.preview_service import convert_to_gltf, get_preview_path
+    from app.models.version import Version
+    from sqlalchemy import desc
+
+    # 检查是否已有预览
+    existing = get_preview_path(str(part_id))
+    if existing:
+        return {"message": "预览已存在", "path": existing}
+
+    # 获取最新版本的文件路径
+    result = await db.execute(
+        select(Version).where(Version.part_id == part_id)
+        .order_by(desc(Version.created_at)).limit(1)
+    )
+    version = result.scalar_one_or_none()
+    if not version or not version.file_path:
+        raise HTTPException(status_code=404, detail="该零件没有可转换的文件")
+
+    output_path = await convert_to_gltf(version.file_path, str(part_id))
+    if not output_path:
+        raise HTTPException(status_code=422, detail="文件格式暂不支持 3D 预览")
+
+    return {"message": "预览生成成功", "path": output_path}
 
 
 @router.get("/{part_id}", response_model=PartResponse)
