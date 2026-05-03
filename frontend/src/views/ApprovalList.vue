@@ -39,7 +39,7 @@ const loading = ref(false)
 async function fetchNotices() {
   loading.value = true
   try {
-    const { data } = await api.get('/change-notices/')
+    const { data } = await api.get('/change-notices/pending')
     notices.value = data
   } finally {
     loading.value = false
