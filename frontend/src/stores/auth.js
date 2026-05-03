@@ -19,11 +19,17 @@ function decodeJWT(token) {
 
 export const useAuthStore = defineStore('auth', {
     // 从 localStorage 恢复登录状态，实现页面刷新后免登录
-    state: () => ({
-        token: localStorage.getItem('token') || '',
-        user: JSON.parse(localStorage.getItem('user') || 'null'),
-        permissions: JSON.parse(localStorage.getItem('permissions') || '[]'),
-    }),
+    state: () => {
+        let user = null
+        let permissions = []
+        try { user = JSON.parse(localStorage.getItem('user') || 'null') } catch { /* corrupted */ }
+        try { permissions = JSON.parse(localStorage.getItem('permissions') || '[]') } catch { /* corrupted */ }
+        return {
+            token: localStorage.getItem('token') || '',
+            user,
+            permissions,
+        }
+    },
     getters: {
         // 权限判断：检查当前用户是否拥有指定权限
         hasPermission: (state) => (perm) => state.permissions.includes(perm),
