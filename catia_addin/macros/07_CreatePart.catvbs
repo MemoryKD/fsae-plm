@@ -1,0 +1,74 @@
+Language="VBScript"
+
+' FSAE-PLM: Create new part
+' Shows create part dialog, then offers to import current document
+
+Sub CATMain()
+    On Error Resume Next
+
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "FSAE_PLM.dll not registered.", vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    If Not bridge.IsAuthenticated Then
+        MsgBox "Please login first.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Show create part dialog
+    Dim newPartId
+    newPartId = bridge.ShowCreatePart()
+
+    If newPartId = "" Then Exit Sub
+
+    ' Ask if user wants to import current document
+    Dim catia
+    Set catia = GetObject(, "CATIA.Application")
+    Dim doc
+    Set doc = catia.ActiveDocument
+
+    If Not doc Is Nothing Then
+        Dim answer
+        answer = MsgBox("Part created! Import current document (" & doc.Name & ") into PLM?", _
+                        vbYesNo + vbQuestion, "FSAE-PLM")
+        If answer = vbYes Then
+            ' Save the document
+            doc.Save
+
+            ' Checkout the new part first (required before checkin)
+            bridge.CheckoutAndDownload newPartId
+
+            ' Checkin the current document
+            If bridge.CheckinFile(newPartId, doc.FullName) Then
+                MsgBox "Document imported successfully.", vbInformation, "FSAE-PLM"
+
+                ' Sync properties
+                Dim partInfo
+                Set partInfo = bridge.Api.GetPart(newPartId)
+                If Not partInfo Is Nothing Then
+                    On Error Resume Next
+                    doc.UserRefProperties.Item("PLM_PartNumber").Value = partInfo.PartNumber
+                    If Err.Number <> 0 Then
+                        Err.Clear
+                        doc.UserRefProperties.CreateString "PLM_PartNumber", partInfo.PartNumber
+                        Err.Clear
+                    End If
+                    doc.UserRefProperties.Item("PLM_PartId").Value = newPartId
+                    If Err.Number <> 0 Then
+                        Err.Clear
+                        doc.UserRefProperties.CreateString "PLM_PartId", newPartId
+                        Err.Clear
+                    End If
+                    On Error GoTo 0
+                End If
+            Else
+                MsgBox "Import failed: " & bridge.LastError, vbCritical, "FSAE-PLM"
+            End If
+        End If
+    Else
+        MsgBox "Part created. No active document to import.", vbInformation, "FSAE-PLM"
+    End If
+End Sub

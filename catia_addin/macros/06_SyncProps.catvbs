@@ -1,0 +1,104 @@
+Language="VBScript"
+
+' FSAE-PLM: Sync PLM properties to CATIA document
+' Writes PLM_PartNumber, PLM_Name, PLM_Version, PLM_State to UserRefProperties
+
+Sub CATMain()
+    On Error Resume Next
+
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "FSAE_PLM.dll not registered.", vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    If Not bridge.IsAuthenticated Then
+        MsgBox "Please login first.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Get part ID from active document
+    Dim partId
+    partId = ""
+
+    Dim catia
+    Set catia = GetObject(, "CATIA.Application")
+    Dim doc
+    Set doc = catia.ActiveDocument
+    If doc Is Nothing Then
+        MsgBox "No active document.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    On Error Resume Next
+    Dim prop
+    Set prop = doc.UserRefProperties.Item("PLM_PartId")
+    If Not prop Is Nothing Then partId = prop.Value
+    On Error GoTo 0
+
+    If partId = "" Then
+        partId = bridge.ShowPartsList()
+        If partId = "" Then Exit Sub
+    End If
+
+    ' Get part info from API
+    Dim partInfo
+    Set partInfo = bridge.Api.GetPart(partId)
+    If partInfo Is Nothing Then
+        MsgBox "Failed to get part info: " & bridge.LastError, vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Write properties to CATIA document
+    On Error Resume Next
+
+    ' PLM_PartNumber
+    doc.UserRefProperties.Item("PLM_PartNumber").Value = partInfo.PartNumber
+    If Err.Number <> 0 Then
+        Err.Clear
+        ' Property doesn't exist, try to create it
+        doc.UserRefProperties.CreateString "PLM_PartNumber", partInfo.PartNumber
+        Err.Clear
+    End If
+
+    ' PLM_Name
+    doc.UserRefProperties.Item("PLM_Name").Value = partInfo.Name
+    If Err.Number <> 0 Then
+        Err.Clear
+        doc.UserRefProperties.CreateString "PLM_Name", partInfo.Name
+        Err.Clear
+    End If
+
+    ' PLM_Version
+    doc.UserRefProperties.Item("PLM_Version").Value = partInfo.CurrentVersion
+    If Err.Number <> 0 Then
+        Err.Clear
+        doc.UserRefProperties.CreateString "PLM_Version", partInfo.CurrentVersion
+        Err.Clear
+    End If
+
+    ' PLM_State
+    doc.UserRefProperties.Item("PLM_State").Value = partInfo.LifecycleState
+    If Err.Number <> 0 Then
+        Err.Clear
+        doc.UserRefProperties.CreateString "PLM_State", partInfo.LifecycleState
+        Err.Clear
+    End If
+
+    ' PLM_PartId (for future reference)
+    doc.UserRefProperties.Item("PLM_PartId").Value = partId
+    If Err.Number <> 0 Then
+        Err.Clear
+        doc.UserRefProperties.CreateString "PLM_PartId", partId
+        Err.Clear
+    End If
+
+    On Error GoTo 0
+
+    MsgBox "PLM properties synced successfully." & vbCrLf & _
+           "Part Number: " & partInfo.PartNumber & vbCrLf & _
+           "Version: " & partInfo.CurrentVersion & vbCrLf & _
+           "State: " & partInfo.LifecycleState, _
+           vbInformation, "FSAE-PLM"
+End Sub

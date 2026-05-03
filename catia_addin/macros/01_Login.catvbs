@@ -1,0 +1,23 @@
+Language="VBScript"
+
+' FSAE-PLM: Login to PLM system
+' Shows login dialog, stores JWT token for subsequent operations
+
+Sub CATMain()
+    On Error Resume Next
+
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "Failed to create PLM bridge. Make sure FSAE_PLM.dll is registered." & vbCrLf & Err.Description, vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Show login dialog (blocking - VBS waits until dialog closes)
+    Dim result
+    result = bridge.ShowLoginDialog()
+
+    If bridge.IsAuthenticated Then
+        MsgBox "Login successful!", vbInformation, "FSAE-PLM"
+    End If
+End Sub

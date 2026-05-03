@@ -1,0 +1,31 @@
+Language="VBScript"
+
+' FSAE-PLM: Search and browse parts
+' Shows parts list dialog, double-click to view detail
+
+Sub CATMain()
+    On Error Resume Next
+
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "FSAE_PLM.dll not registered.", vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    If Not bridge.IsAuthenticated Then
+        MsgBox "Please login first.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Show parts list (blocking)
+    Dim partId
+    partId = bridge.ShowPartsList()
+
+    ' If user selected a part and chose to checkout, open the file in CATIA
+    If Left(bridge.LastCheckoutPath, 1) <> "" Then
+        Dim catia
+        Set catia = GetObject(, "CATIA.Application")
+        catia.Documents.Open bridge.LastCheckoutPath
+    End If
+End Sub

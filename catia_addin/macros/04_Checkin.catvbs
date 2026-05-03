@@ -1,0 +1,75 @@
+Language="VBScript"
+
+' FSAE-PLM: Checkin current document
+' Uploads the active CATIA document to PLM as a new version
+
+Sub CATMain()
+    On Error Resume Next
+
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "FSAE_PLM.dll not registered.", vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    If Not bridge.IsAuthenticated Then
+        MsgBox "Please login first.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Get active document
+    Dim catia
+    Set catia = GetObject(, "CATIA.Application")
+    Dim doc
+    Set doc = catia.ActiveDocument
+    If doc Is Nothing Then
+        MsgBox "No active document.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Save the document first
+    doc.Save
+
+    ' Get file path
+    Dim filePath
+    filePath = doc.FullName
+
+    ' Read PLM_PartNumber to find the part ID
+    Dim partId
+    partId = ""
+    On Error Resume Next
+    Dim userProps
+    Set userProps = doc.UserRefProperties
+    If Not userProps Is Nothing Then
+        Dim prop
+        Set prop = userProps.Item("PLM_PartId")
+        If Not prop Is Nothing Then
+            partId = prop.Value
+        End If
+    End If
+    On Error GoTo 0
+
+    If partId = "" Then
+        ' No part ID, show parts list for user to select
+        partId = bridge.ShowPartsList()
+        If partId = "" Then Exit Sub
+    End If
+
+    ' Checkin the file
+    If bridge.CheckinFile(partId, filePath) Then
+        MsgBox "Checkin successful!", vbInformation, "FSAE-PLM"
+
+        ' Sync new version info back to document
+        Dim partInfo
+        Set partInfo = bridge.Api.GetPart(partId)
+        If Not partInfo Is Nothing Then
+            On Error Resume Next
+            doc.UserRefProperties.Item("PLM_Version").Value = partInfo.CurrentVersion
+            doc.UserRefProperties.Item("PLM_State").Value = partInfo.LifecycleState
+            On Error GoTo 0
+        End If
+    Else
+        MsgBox "Checkin failed: " & bridge.LastError, vbCritical, "FSAE-PLM"
+    End If
+End Sub

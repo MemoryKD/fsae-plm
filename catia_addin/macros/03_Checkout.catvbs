@@ -1,0 +1,70 @@
+Language="VBScript"
+
+' FSAE-PLM: Checkout current part
+' Reads PLM_PartNumber from active document, looks up part, downloads file
+
+Sub CATMain()
+    On Error Resume Next
+
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "FSAE_PLM.dll not registered.", vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    If Not bridge.IsAuthenticated Then
+        MsgBox "Please login first.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Get active document's PLM properties
+    Dim catia
+    Set catia = GetObject(, "CATIA.Application")
+    If Err.Number <> 0 Then
+        MsgBox "CATIA not running.", vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    Dim doc
+    Set doc = catia.ActiveDocument
+    If doc Is Nothing Then
+        MsgBox "No active document.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Read PLM_PartNumber from UserRefProperties
+    Dim partNumber
+    partNumber = ""
+    On Error Resume Next
+    Dim userProps
+    Set userProps = doc.UserRefProperties
+    If Not userProps Is Nothing Then
+        Dim prop
+        Set prop = userProps.Item("PLM_PartNumber")
+        If Not prop Is Nothing Then
+            partNumber = prop.Value
+        End If
+    End If
+    On Error GoTo 0
+
+    If partNumber = "" Then
+        ' No PLM property found, show parts list for user to select
+        Dim selectedId
+        selectedId = bridge.ShowPartsList()
+        If selectedId = "" Then Exit Sub
+
+        ' Checkout the selected part
+        If bridge.CheckoutAndDownload(selectedId) Then
+            catia.Documents.Open bridge.LastCheckoutPath
+            MsgBox "Part checked out and opened.", vbInformation, "FSAE-PLM"
+        Else
+            MsgBox "Checkout failed: " & bridge.LastError, vbCritical, "FSAE-PLM"
+        End If
+    Else
+        ' TODO: Look up part by number and checkout
+        ' For now, show parts list
+        Dim id2
+        id2 = bridge.ShowPartsList()
+    End If
+End Sub

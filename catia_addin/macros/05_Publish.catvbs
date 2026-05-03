@@ -1,0 +1,52 @@
+Language="VBScript"
+
+' FSAE-PLM: Publish current part
+' Changes lifecycle state to "Published"
+
+Sub CATMain()
+    On Error Resume Next
+
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "FSAE_PLM.dll not registered.", vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    If Not bridge.IsAuthenticated Then
+        MsgBox "Please login first.", vbExclamation, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Get part ID from active document
+    Dim partId
+    partId = ""
+
+    Dim catia
+    Set catia = GetObject(, "CATIA.Application")
+    Dim doc
+    Set doc = catia.ActiveDocument
+    If Not doc Is Nothing Then
+        On Error Resume Next
+        Dim prop
+        Set prop = doc.UserRefProperties.Item("PLM_PartId")
+        If Not prop Is Nothing Then partId = prop.Value
+        On Error GoTo 0
+    End If
+
+    If partId = "" Then
+        partId = bridge.ShowPartsList()
+        If partId = "" Then Exit Sub
+    End If
+
+    ' Confirm publish
+    Dim answer
+    answer = MsgBox("Publish this part? This makes it read-only.", vbYesNo + vbQuestion, "FSAE-PLM")
+    If answer <> vbYes Then Exit Sub
+
+    If bridge.PublishPart(partId) Then
+        MsgBox "Part published successfully.", vbInformation, "FSAE-PLM"
+    Else
+        MsgBox "Publish failed: " & bridge.LastError, vbCritical, "FSAE-PLM"
+    End If
+End Sub

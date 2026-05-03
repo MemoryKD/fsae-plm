@@ -1,0 +1,39 @@
+Language="VBScript"
+
+' FSAE-PLM: Auto-startup macro
+' Place in CATIA startup directory to auto-load on CATIA startup.
+' Verifies PLM system is ready and shows status.
+
+Sub CATMain()
+    On Error Resume Next
+
+    ' Check PLM DLL is registered
+    Dim bridge
+    Set bridge = CreateObject("FSAE_PLM.PlmBridge")
+    If Err.Number <> 0 Then
+        MsgBox "FSAE-PLM DLL not registered." & vbCrLf & _
+               "Please run deploy.bat as Administrator.", _
+               vbCritical, "FSAE-PLM"
+        Exit Sub
+    End If
+
+    ' Run startup check
+    Dim status
+    status = bridge.StartupCheck()
+    If Err.Number <> 0 Then
+        status = "Startup check error: " & Err.Description
+        Err.Clear
+    End If
+
+    ' Try to restore session
+    If bridge.IsAuthenticated Then
+        ' Session restored, show brief notification
+        ' (Don't show popup on every CATIA start - just log)
+    Else
+        ' No session, show login on first use
+        ' User will login when they click a toolbar button
+    End If
+
+    ' Clean up
+    Set bridge = Nothing
+End Sub
