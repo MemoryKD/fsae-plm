@@ -196,7 +196,7 @@ function renderContent(text) {
 }
 
 async function fetchCategories() {
-  const { data } = await api.get('/knowledge/categories')
+  const { data } = await api.get('/knowledge/categories/')
   categories.value = data
 }
 
@@ -207,7 +207,7 @@ async function fetchArticles() {
     const params = {}
     if (selectedCat.value) params.category_id = selectedCat.value.id
     if (search.value) params.search = search.value
-    const { data } = await api.get('/knowledge/articles', { params })
+    const { data } = await api.get('/knowledge/articles/', { params })
     articles.value = data
   } catch { /* handled */ } finally {
     loading.value = false
@@ -256,7 +256,7 @@ async function saveArticle() {
       await api.put(`/knowledge/articles/${editingArticle.value.id}`, articleForm.value)
       ElMessage.success('文章已更新')
     } else {
-      await api.post('/knowledge/articles', articleForm.value)
+      await api.post('/knowledge/articles/', articleForm.value)
       ElMessage.success('文章已创建')
     }
     showArticleDialog.value = false
@@ -312,7 +312,7 @@ async function deleteAttachment(att) {
 async function createCategory() {
   if (!catForm.value.name) return
   try {
-    await api.post('/knowledge/categories', catForm.value)
+    await api.post('/knowledge/categories/', catForm.value)
     ElMessage.success('板块已创建')
     catForm.value = { name: '', description: '' }
     await fetchCategories()
