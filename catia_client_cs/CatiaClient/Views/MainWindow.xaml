@@ -22,5 +22,29 @@
             <views:RegisterView/>
         </DataTemplate>
     </Window.Resources>
-    <ContentControl Content="{Binding CurrentView}"/>
+    <DockPanel>
+        <!-- Bottom status bar -->
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="10" Height="10" Margin="0,0,6,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="Green"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsCatiaConnected}" Value="False">
+                                        <Setter Property="Fill" Value="Red"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding CatiaStatus}"/>
+                    <Button Content="重新连接" Command="{Binding ReconnectCatiaCommand}"
+                            Margin="10,0,0,0" Padding="6,2" FontSize="11"/>
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
+        <ContentControl Content="{Binding CurrentView}"/>
+    </DockPanel>
 </Window>
