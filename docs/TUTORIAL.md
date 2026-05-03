@@ -17,11 +17,12 @@
 9. [分支与谱系](#9-分支与谱系)
 10. [知识库](#10-知识库)
 11. [角色权限管理](#11-角色权限管理)
-12. [C# CATIA 客户端使用](#12-c-catia-客户端使用)
-13. [Python CATIA 客户端使用](#13-python-catia-客户端使用)
-14. [用户管理](#14-用户管理)
-15. [API 文档](#15-api-文档)
-16. [常见问题](#16-常见问题)
+12. [CATIA 内嵌版客户端（推荐）](#12-catia-内嵌版客户端推荐)
+13. [C# WPF 客户端使用（独立窗口版）](#13-c-wpf-客户端使用独立窗口版)
+14. [Python CATIA 客户端使用](#14-python-catia-客户端使用)
+15. [用户管理](#15-用户管理)
+16. [API 文档](#16-api-文档)
+17. [常见问题](#17-常见问题)
 
 ---
 
@@ -459,9 +460,82 @@ dotnet build
 
 ---
 
-## 12. C# CATIA 客户端使用
+## 12. CATIA 内嵌版客户端（推荐）
 
-C# WPF 客户端是推荐的 CATIA 集成方案，基于 .NET 8 和 MVVM 架构。
+CATIA 内嵌版通过 C# COM DLL + VBS 宏将 PLM 功能集成到 CATIA 工具栏中，用户无需在 CATIA 和外部程序之间切换。
+
+### 12.1 安装
+
+1. 安装 .NET 8.0 SDK
+2. 以管理员身份运行 `catia_addin/deploy.bat`
+3. 重启 CATIA V5
+4. 在 CATIA 中添加宏库：
+   - Tools > Options > General > Macros
+   - 点击 Add Library
+   - 浏览到 `%APPDATA%\Dassault Systemes\CATSettings\Macros`
+5. 将宏拖到工具栏：
+   - Tools > Macro > Macros
+   - 选择宏 > 拖到 CATIA 工具栏
+
+### 12.2 工具栏按钮
+
+| 按钮 | 功能 |
+|------|------|
+| 00_Startup | CATIA 启动时自动检查 PLM 状态 |
+| 01_Login | 登录 PLM 系统（服务器地址 + 用户名 + 密码） |
+| 02_SearchParts | 搜索/浏览零件列表，双击查看详情 |
+| 03_Checkout | 检出零件，下载文件到 CATIA |
+| 04_Checkin | 检入当前 CATIA 文档到 PLM |
+| 05_Publish | 发布零件（更改生命周期状态） |
+| 06_SyncProps | 同步 PLM 属性到 CATIA 文档 |
+| 07_CreatePart | 新建零件（模板自动编号 + 文件导入） |
+
+### 12.3 使用流程
+
+**登录：**
+1. 点击 CATIA 工具栏的 Login 按钮
+2. 输入服务器地址（默认 `http://localhost/api`）
+3. 输入用户名和密码
+4. 登录成功后 token 自动保存，下次无需重新登录
+
+**创建新零件：**
+1. 在 CATIA 中设计零件
+2. 点击 Create Part 按钮
+3. 选择编号模板、子系统、类型
+4. 系统自动预览零件编号
+5. 点击创建，选择是否将当前文档导入 PLM
+
+**检出/编辑/检入：**
+1. 点击 Search Parts 找到目标零件
+2. 选择零件后点击 Checkout，文件自动下载并在 CATIA 中打开
+3. 编辑完成后点击 Checkin，文件自动上传到 PLM
+4. 版本自动递增
+
+**同步属性：**
+- 点击 Sync Props，PLM 属性（零件号、名称、版本、状态）自动写入 CATIA 文档的自定义属性
+
+### 12.4 CATIA 启动检查
+
+`00_Startup.catvbs` 放入 CATIA 启动目录后，每次 CATIA 启动会自动检查：
+- CATIA 进程是否运行
+- COM 连接是否正常
+- PLM 宏是否已安装
+- API 是否已登录
+
+### 12.5 COM 注册
+
+如果 `deploy.bat` 注册失败，手动注册：
+
+```powershell
+# 以管理员身份运行 PowerShell
+Start-Process powershell -ArgumentList '-ExecutionPolicy', 'Bypass', '-File', 'catia_addin\register_com.ps1' -Verb RunAs
+```
+
+---
+
+## 13. C# WPF 客户端使用（独立窗口版）
+
+C# WPF 客户端是独立窗口版本的 CATIA 集成方案，基于 .NET 8 和 MVVM 架构。
 
 ### 12.1 安装
 
