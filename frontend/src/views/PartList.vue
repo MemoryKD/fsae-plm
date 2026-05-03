@@ -101,14 +101,14 @@ const currentSubsystemCodes = computed(() => {
 
 /** 获取零件列表，支持按关键词搜索 */
 async function fetchParts() {
-  const { data } = await api.get('/parts', { params: { search: search.value } })
+  const { data } = await api.get('/parts/', { params: { search: search.value } })
   parts.value = data
 }
 
 /** 加载编号模板列表（在新建零件对话框打开时触发） */
 async function loadTemplates() {
   try {
-    const { data } = await api.get('/templates')
+    const { data } = await api.get('/templates/')
     templates.value = data
   } catch { /* handled */ }
 }
