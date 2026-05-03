@@ -27,23 +27,24 @@ async def transition_state(
         raise HTTPException(status_code=404, detail="零件不存在")
 
     engine = WorkflowEngine(
-        states=["设计中", "审核中", "已发布"],
+        states=["工作中", "审核中", "已发布"],
         transitions=[
-            {"from": "设计中", "to": "审核中", "roles": ["designer", "manager", "admin"]},
+            {"from": "工作中", "to": "审核中", "roles": ["designer", "manager", "admin"]},
             {"from": "审核中", "to": "已发布", "roles": ["manager", "admin"]},
-            {"from": "审核中", "to": "设计中", "roles": ["manager", "admin"]},
+            {"from": "审核中", "to": "工作中", "roles": ["manager", "admin"]},
         ]
     )
 
-    if not engine.can_transition(part.workflow_state, data.to_state, current_user.role):
+    current_state = part.lifecycle_state or "工作中"
+    if not engine.can_transition(current_state, data.to_state, current_user.role):
         raise HTTPException(status_code=403, detail="无权执行此状态转换")
 
     approval = Approval(
-        part_id=part_id, from_state=part.workflow_state,
+        part_id=part_id, from_state=current_state,
         to_state=data.to_state, approver_id=current_user.id, comment=data.comment,
     )
     db.add(approval)
-    part.workflow_state = data.to_state
+    part.lifecycle_state = data.to_state
     await db.commit()
     await db.refresh(approval)
     return ApprovalResponse.model_validate(approval)
