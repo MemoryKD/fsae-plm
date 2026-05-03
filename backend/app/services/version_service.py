@@ -57,6 +57,9 @@ async def upload_version(
     if not part:
         raise HTTPException(status_code=404, detail="零件不存在")
 
+    if part.check_state == "检出" and str(part.checked_out_by) != str(user_id):
+        raise HTTPException(status_code=403, detail="零件已被其他用户检出，无法上传版本")
+
     content = await file.read()
     storage = get_storage()
     file_path, file_size = await storage.save(content, file.filename)
