@@ -104,8 +104,11 @@ async def approve_change_notice(
         from app.services.part_service import unpublish_part
         try:
             await unpublish_part(cn.part_id, db, current_user.id, cn.id)
-        except Exception:
-            pass  # unpublish may fail if part state doesn't allow it
+        except Exception as e:
+            cn.status = "待审批"
+            cn.approved_by = None
+            await db.commit()
+            raise HTTPException(status_code=400, detail=f"审批通过但取消发布失败: {str(e)}")
     else:
         cn.status = "已拒绝"
         cn.approved_by = current_user.id
