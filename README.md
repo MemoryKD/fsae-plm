@@ -4,6 +4,13 @@
 
 解决 CATIA 零件文件命名混乱、版本丢失、文件分散等问题，提供集中存储、自动编号、版本管理、BOM 管理和分支追踪功能。
 
+## v1.4.0 更新（CATIA 内嵌版）
+
+- **CATIA 内嵌客户端**：通过 C# COM DLL + VBS 宏将 PLM 功能嵌入 CATIA 工具栏，用户无需切换窗口
+- **8 个工具栏按钮**：登录、搜索零件、检出、检入、发布、同步属性、新建零件、自动启动检查
+- **CATIA 连接检测**：启动时自动检测 CATIA 进程、COM 连接、宏安装状态
+- **独立测试程序**：可脱离 CATIA 独立运行测试 WinForms 界面和 API 通信
+
 ## v1.3.0 更新
 
 - **CATIA 连接状态**：客户端底部实时显示 CATIA 连接状态（绿灯/红灯），支持一键重连，连接失败显示详细错误信息
@@ -67,14 +74,22 @@ fsae-plm/
 │   │   ├── api/                    # Axios HTTP 客户端
 │   │   └── router/                 # Vue Router
 │   └── Dockerfile
-├── catia_client_cs/                # C# WPF CATIA 客户端（推荐）
+├── catia_addin/                    # CATIA 内嵌版客户端（C# COM + VBS 宏）
+│   ├── FSAE_PLM.csproj             # .NET 8 COM DLL 项目
+│   ├── PlmBridge.cs                # COM 入口（VBS 通过 CreateObject 调用）
+│   ├── Services/PlmApiService.cs   # 17 个同步 API 方法
+│   ├── Models/PartInfo.cs          # COM 可见数据模型
+│   ├── Forms/                      # WinForms 对话框（登录/列表/详情/新建）
+│   ├── macros/                     # 8 个 VBS 宏脚本（安装到 CATIA）
+│   ├── deploy.bat                  # 一键构建+注册+安装
+│   └── register_com.ps1            # COM 注册脚本
+├── catia_client_cs/                # C# WPF CATIA 客户端（独立窗口版）
 │   └── CatiaClient/
 │       ├── Models/                 # 数据模型
 │       ├── Services/               # ApiClient + CatiaService
 │       ├── ViewModels/             # MVVM ViewModel 层
 │       └── Views/                  # XAML 视图
 ├── catia_client/                   # Python CATIA 客户端（旧版）
-├── catia_plugin/                   # CATIA V5 VBA 宏（旧版，保留参考）
 ├── nginx/nginx.conf                # Nginx 反向代理配置
 ├── docker-compose.yml              # Docker 部署
 └── docs/
@@ -117,13 +132,24 @@ npm install
 npm run dev
 ```
 
-**C# CATIA 客户端：**
+**C# CATIA 客户端（独立窗口版）：**
 
 ```bash
 cd catia_client_cs/CatiaClient
 dotnet build
 # 或在 Visual Studio 中打开 CatiaClient.sln
 ```
+
+**CATIA 内嵌版客户端（推荐）：**
+
+```bash
+cd catia_addin
+dotnet build FSAE_PLM.csproj -c Release
+# 以管理员身份运行 register_com.ps1 注册 COM
+# 将 macros/*.catvbs 复制到 CATIA 宏目录
+```
+
+或直接运行 `deploy.bat`（需管理员权限）。
 
 需要 .NET 8.0 SDK 和 Windows 系统。
 
