@@ -15,6 +15,7 @@ class VersionResponse(BaseModel):
     file_path: str | None
     file_size: int | None
     file_type: str | None
+    file_hash: str | None = None
     comment: str | None
     created_by: UUID | None
     created_at: datetime
