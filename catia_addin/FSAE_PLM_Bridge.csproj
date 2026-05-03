@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>FSAE_PLM_Bridge</AssemblyName>
+    <RootNamespace>FSAE_PLM</RootNamespace>
+    <PlatformTarget>x86</PlatformTarget>
+    <ComVisible>true</ComVisible>
+    <RegisterForComInterop>true</RegisterForComInterop>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="TestApp.cs" />
+    <Compile Remove="register.ps1" />
+    <Compile Remove="test_com.vbs" />
+    <Compile Remove="test_login.vbs" />
+    <Compile Remove="test_ui.py" />
+  </ItemGroup>
+</Project>
