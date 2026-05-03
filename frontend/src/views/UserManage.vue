@@ -82,7 +82,7 @@ function formatDate(dateStr) {
 async function fetchUsers() {
   loading.value = true
   try {
-    const { data } = await api.get('/users')
+    const { data } = await api.get('/users/')
     users.value = data
   } catch {
     // error handled by interceptor
