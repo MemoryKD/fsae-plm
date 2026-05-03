@@ -62,6 +62,15 @@ public class ApiClient
     }
 
     /// <summary>
+    /// 清除 JWT token，退出登录时调用，防止旧 token 残留。
+    /// </summary>
+    public void ClearToken()
+    {
+        _token = null;
+        _http.DefaultRequestHeaders.Authorization = null;
+    }
+
+    /// <summary>
     /// 用户登录。成功后自动保存 JWT token 用于后续请求。
     /// </summary>
     /// <param name="username">用户名</param>
@@ -145,14 +154,15 @@ public class ApiClient
     /// <returns>创建的零件，失败返回 null</returns>
     public async Task<Part?> CreateWithTemplateAsync(string name, string type, string subsystem, Guid templateId)
     {
-        var form = new Dictionary<string, string>
+        var json = JsonSerializer.Serialize(new
         {
-            ["name"] = name,
-            ["type"] = type,
-            ["subsystem"] = subsystem,
-            ["template_id"] = templateId.ToString()
-        };
-        var response = await _http.PostAsync("parts/create-with-template", new FormUrlEncodedContent(form));
+            name,
+            type,
+            subsystem,
+            template_id = templateId.ToString()
+        });
+        var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        var response = await _http.PostAsync("parts/create-with-template", content);
         if (!response.IsSuccessStatusCode) return null;
         return await response.Content.ReadFromJsonAsync<Part>(JsonOptions);
     }
@@ -187,16 +197,26 @@ public class ApiClient
     /// <param name="partId">要检入的零件 ID</param>
     /// <param name="filePath">本地 CATIA 文件路径</param>
     /// <param name="comment">检入备注，可选</param>
-    /// <returns>更新后的零件信息，失败返回 null</returns>
-    public async Task<Part?> CheckinAsync(Guid partId, string filePath, string comment = "")
+    /// <returns>成功返回 (零件, "")，失败返回 (null, 错误信息)</returns>
+    public async Task<(Part? Part, string Error)> CheckinAsync(Guid partId, string filePath, string comment = "")
     {
         using var content = new MultipartFormDataContent();
         var fileBytes = await File.ReadAllBytesAsync(filePath);
         content.Add(new ByteArrayContent(fileBytes), "file", Path.GetFileName(filePath));
         content.Add(new StringContent(comment), "comment");
         var response = await _http.PostAsync($"parts/{partId}/checkin", content);
-        if (!response.IsSuccessStatusCode) return null;
-        return await response.Content.ReadFromJsonAsync<Part>(JsonOptions);
+        if (response.IsSuccessStatusCode)
+        {
+            var part = await response.Content.ReadFromJsonAsync<Part>(JsonOptions);
+            return (part, "");
+        }
+        var body = await response.Content.ReadAsStringAsync();
+        try
+        {
+            var result = JsonSerializer.Deserialize<JsonElement>(body);
+            return (null, result.GetProperty("detail").GetString() ?? "检入失败");
+        }
+        catch { return (null, $"检入失败: {response.StatusCode}"); }
     }
 
     /// <summary>
