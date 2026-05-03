@@ -33,16 +33,14 @@ public class CatiaService
         out Guid clsid);
 
     /// <summary>
-    /// 获取已运行的 COM 对象实例。先将 ProgID 转为 CLSID，再查找运行中的对象。
-    /// 如果 CATIA 未运行，GetActiveObject 会抛出异常，此时返回 null。
+    /// 尝试获取已运行的 COM 对象实例，支持多个 ProgID。
+    /// CATIA 不同版本/安装方式可能使用不同的 ProgID。
     /// </summary>
-    /// <param name="progId">COM 应用程序的 ProgID（如 "CATIA.Application"）</param>
-    /// <returns>COM 对象实例，未找到返回 null</returns>
     private static object? GetActiveComObject(string progId)
     {
-        CLSIDFromProgID(progId, out var clsid);
         try
         {
+            CLSIDFromProgID(progId, out var clsid);
             GetActiveObject(clsid, IntPtr.Zero, out var obj);
             return obj;
         }
@@ -55,22 +53,62 @@ public class CatiaService
     /// <summary>是否已连接到 CATIA 进程</summary>
     public bool IsConnected => _catia != null;
 
+    /// <summary>最近一次操作的错误信息</summary>
+    public string? LastError { get; private set; }
+
     /// <summary>
-    /// 连接到已运行的 CATIA 进程。CATIA 必须已启动，否则连接失败。
-    /// 通过 COM 的 GetActiveObject 获取 CATIA Application 对象。
+    /// 连接到已运行的 CATIA 进程。尝试多个 ProgID 以兼容不同 CATIA 版本。
     /// </summary>
     /// <returns>连接成功返回 true</returns>
     public bool Connect()
     {
+        _catia = null;
+        LastError = null;
+
+        // 尝试多个 ProgID，覆盖不同 CATIA 版本
+        var progIds = new[]
+        {
+            "CATIA.Application",
+            "CATIA.Application.1",
+        };
+
+        var errors = new List<string>();
+
+        foreach (var progId in progIds)
+        {
+            try
+            {
+                var obj = GetActiveComObject(progId);
+                if (obj != null)
+                {
+                    _catia = obj;
+                    return true;
+                }
+                errors.Add($"ProgID '{progId}': 未找到运行中的实例");
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"ProgID '{progId}': {ex.Message}");
+            }
+        }
+
+        // 所有 ProgID 都失败，尝试直接用 Type.GetTypeFromProgID 创建新实例
         try
         {
-            _catia = GetActiveComObject("CATIA.Application");
-            return _catia != null;
+            var type = Type.GetTypeFromProgID("CATIA.Application");
+            if (type != null)
+            {
+                _catia = Activator.CreateInstance(type);
+                if (_catia != null) return true;
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            errors.Add($"CreateInstance: {ex.Message}");
         }
+
+        LastError = string.Join("; ", errors);
+        return false;
     }
 
     /// <summary>
@@ -167,19 +205,43 @@ public class CatiaService
     /// <summary>
     /// 保存 CATIA 当前活动文档。
     /// </summary>
-    public void SaveDocument()
+    /// <returns>成功返回 true，失败返回 false</returns>
+    public bool SaveDocument()
     {
-        try { _catia?.ActiveDocument?.Save(); }
-        catch { }
+        try
+        {
+            if (_catia?.ActiveDocument == null) return false;
+            _catia.ActiveDocument.Save();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LastError = $"保存文档失败: {ex.Message}";
+            return false;
+        }
     }
 
     /// <summary>
     /// 在 CATIA 中打开指定路径的文档。
     /// </summary>
     /// <param name="filePath">文档文件的完整路径</param>
-    public void OpenDocument(string filePath)
+    /// <returns>成功返回 true，失败返回 false 并设置 LastError</returns>
+    public bool OpenDocument(string filePath)
     {
-        try { _catia?.Documents?.Open(filePath); }
-        catch { }
+        try
+        {
+            if (_catia == null)
+            {
+                LastError = "CATIA 未连接";
+                return false;
+            }
+            _catia.Documents.Open(filePath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LastError = $"打开文件失败: {ex.Message}";
+            return false;
+        }
     }
 }
