@@ -8,7 +8,7 @@
         <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,15"/>
 
         <TextBlock Text="类型" Margin="0,0,0,5"/>
-        <ComboBox SelectedItem="{Binding Type}" Margin="0,0,0,15">
+        <ComboBox SelectedValue="{Binding Type}" SelectedValuePath="Content" Margin="0,0,0,15">
             <ComboBoxItem Content="part"/>
             <ComboBoxItem Content="assembly"/>
             <ComboBoxItem Content="document"/>
