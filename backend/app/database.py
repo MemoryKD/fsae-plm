@@ -63,6 +63,7 @@ async def init_db():
         "ALTER TABLE users ADD COLUMN join_year VARCHAR(4)",
         "ALTER TABLE users ADD COLUMN phone VARCHAR(20)",
         "ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'approved'",
+        "ALTER TABLE versions ADD COLUMN file_hash VARCHAR(64)",
     ]:
         try:
             async with get_engine().begin() as conn:
