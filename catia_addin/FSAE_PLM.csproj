@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <OutputType>Library</OutputType>
+    <AssemblyName>FSAE_PLM</AssemblyName>
+    <RootNamespace>FSAE_PLM</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+    <ComVisible>true</ComVisible>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableComHosting>true</EnableComHosting>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="TestApp.cs" />
+  </ItemGroup>
+</Project>
